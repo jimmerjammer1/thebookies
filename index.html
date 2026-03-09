@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Bookies</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #13100A; color: #EDE7D9; font-family: 'Lato', sans-serif; }
+    #root { min-height: 100vh; }
+    #loading-screen {
+      position: fixed; inset: 0; background: #13100A;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 9999; gap: 16px;
+    }
+    #loading-screen h1 { font-family: 'Playfair Display', serif; font-size: 36px; font-weight: 900; }
+    #loading-screen h1 span { font-style: italic; color: #C8903A; }
+    #loading-screen p { color: #6a5a40; font-size: 13px; letter-spacing: 0.1em; }
+    .spinner { width: 32px; height: 32px; border: 3px solid #3a3020; border-top-color: #C8903A; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #config-screen {
+      position: fixed; inset: 0; background: #13100A;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 9998; padding: 20px;
+    }
+    .config-box {
+      background: #1a160f; border: 1px solid #4a3f2a; border-radius: 14px;
+      padding: 32px; width: 100%; max-width: 540px;
+    }
+    .config-box h2 { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+    .config-box p  { color: #6a5a40; font-size: 13px; line-height: 1.6; margin-bottom: 20px; }
+    .config-box label { display: block; font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; color: #9a8060; margin-bottom: 6px; margin-top: 14px; }
+    .config-box input { width: 100%; background: #0d0b07; border: 1px solid #3a3020; border-radius: 8px; padding: 11px 13px; color: #EDE7D9; font-family: 'Lato', sans-serif; font-size: 13px; outline: none; transition: border-color 0.2s; }
+    .config-box input:focus { border-color: #C8903A; }
+    .config-box input::placeholder { color: #4a4030; }
+    .config-save { margin-top: 22px; width: 100%; background: linear-gradient(135deg,#C8903A,#a0702a); border: none; border-radius: 8px; color: #13100A; font-family: 'Lato',sans-serif; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 13px; cursor: pointer; font-size: 12px; }
+    .config-save:hover { opacity: 0.88; }
+    .config-note { margin-top: 14px; background: #0d0b07; border: 1px solid #2a2315; border-radius: 8px; padding: 12px 14px; font-size: 12px; color: #6a5a40; line-height: 1.6; }
+    .config-note strong { color: #C8903A; }
+    .config-error { color: #e05a5a; font-size: 12px; margin-top: 8px; }
+  </style>
+</head>
+<body>
+
+  <!-- Loading screen shown while Firebase connects -->
+  <div id="loading-screen">
+    <h1>The <span>Bookies</span></h1>
+    <div class="spinner"></div>
+    <p>Connecting to database…</p>
+  </div>
+
+  <!-- Config screen shown if Firebase isn't set up yet -->
+  <div id="config-screen" style="display:none">
+    <div class="config-box">
+      <h2>Connect Your Database</h2>
+      <p>The Bookies needs a Firebase Realtime Database to sync data across all members in real time. This is free — setup takes about 3 minutes.</p>
+
+      <div class="config-note">
+        <strong>How to get your config:</strong><br>
+        1. Go to <strong>console.firebase.google.com</strong><br>
+        2. Create a project → Add a web app<br>
+        3. Copy the values from the <code>firebaseConfig</code> object shown<br>
+        4. In your project, go to <strong>Build → Realtime Database → Create database</strong><br>
+        5. Choose "Start in test mode" → paste your values below
+      </div>
+
+      <label>API Key</label>
+      <input id="cfg-apiKey" placeholder="AIzaSy..." />
+      <label>Auth Domain</label>
+      <input id="cfg-authDomain" placeholder="your-project.firebaseapp.com" />
+      <label>Database URL</label>
+      <input id="cfg-databaseURL" placeholder="https://your-project-default-rtdb.firebaseio.com" />
+      <label>Project ID</label>
+      <input id="cfg-projectId" placeholder="your-project-id" />
+
+      <div id="cfg-error" class="config-error" style="display:none"></div>
+      <button class="config-save" onclick="saveConfig()">Save & Connect</button>
+
+      <p style="margin-top:16px;font-size:11px;color:#3a3020;text-align:center">Config is saved in your browser and never shared</p>
+    </div>
+  </div>
+
+  <div id="root"></div>
+
+  <!-- React -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
+  <script>
+    // ── Firebase config management ───────────────────────────────────────────
+    const CONFIG_KEY = "bookies-firebase-config";
+
+    function getConfig() {
+      try { return JSON.parse(localStorage.getItem(CONFIG_KEY)); } catch { return null; }
+    }
+
+    function saveConfig() {
+      const cfg = {
+        apiKey:      document.getElementById("cfg-apiKey").value.trim(),
+        authDomain:  document.getElementById("cfg-authDomain").value.trim(),
+        databaseURL: document.getElementById("cfg-databaseURL").value.trim(),
+        projectId:   document.getElementById("cfg-projectId").value.trim(),
+      };
+      const missing = Object.entries(cfg).filter(([,v])=>!v).map(([k])=>k);
+      if (missing.length) {
+        const el = document.getElementById("cfg-error");
+        el.textContent = "Please fill in: " + missing.join(", ");
+        el.style.display = "block";
+        return;
+      }
+      localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg));
+      document.getElementById("config-screen").style.display = "none";
+      document.getElementById("loading-screen").style.display = "flex";
+      initFirebase(cfg);
+    }
+
+    function initFirebase(cfg) {
+      try {
+        if (!firebase.apps.length) firebase.initializeApp(cfg);
+        const db = firebase.database();
+        // Test connection
+        db.ref(".info/connected").on("value", snap => {
+          if (snap.val() === true) {
+            document.getElementById("loading-screen").style.display = "none";
+            mountApp(db);
+          }
+        });
+        // Timeout fallback
+        setTimeout(() => {
+          const ls = document.getElementById("loading-screen");
+          if (ls.style.display !== "none") {
+            ls.querySelector("p").textContent = "Connection slow — check your Database URL";
+          }
+        }, 8000);
+      } catch(e) {
+        console.error(e);
+        document.getElementById("loading-screen").style.display = "none";
+        document.getElementById("config-screen").style.display = "flex";
+        document.getElementById("cfg-error").textContent = "Firebase error: " + e.message;
+        document.getElementById("cfg-error").style.display = "block";
+      }
+    }
+
+    function mountApp(db) {
+      window._bookiesDB = db;
+      // Render the React app
+      const script = document.createElement("script");
+      script.type = "text/babel";
+      script.src = "app.js";
+      document.body.appendChild(script);
+    }
+
+    // ── Boot ─────────────────────────────────────────────────────────────────
+    const savedConfig = getConfig();
+    if (savedConfig) {
+      initFirebase(savedConfig);
+    } else {
+      document.getElementById("loading-screen").style.display = "none";
+      document.getElementById("config-screen").style.display = "flex";
+    }
+  </script>
+
+</body>
+</html>
